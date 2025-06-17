@@ -1,0 +1,25 @@
+{
+  "name": "claude-voicebot",
+  "version": "1.0.0",
+  "description": "A voice-enabled AI chatbot that responds like Claude",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve . --single",
+    "build": "echo 'Static site - no build needed'",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "ai",
+    "chatbot",
+    "voice",
+    "claude",
+    "groq",
+    "speech-recognition"
+  ],
+  "author": "Claude Voice Bot",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}
