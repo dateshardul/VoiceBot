@@ -14,7 +14,7 @@
                 <div class="logo-icon">🤖</div>
                 <h1>Claude Voice Bot</h1>
             </div>
-            <p class="subtitle">Ask me anything about my personality, goals, and experiences!</p>
+            <p class="subtitle">Talk to me! Click the mic and ask about my personality, goals, and experiences</p>
         </header>
 
         <div class="chat-container">
@@ -23,7 +23,7 @@
                     <div class="message-content">
                         <div class="avatar bot-avatar">🤖</div>
                         <div class="text">
-                            Hello! I'm Claude, an AI assistant. You can ask me questions about my life story, superpowers, growth areas, and more. Try speaking to me by clicking the microphone button!
+                            Hi! I'm Claude 👋 I love having voice conversations! Click the microphone below and ask me anything about my life story, superpowers, or growth areas. I'll respond by talking to you while showing the text here.
                         </div>
                     </div>
                 </div>
@@ -31,44 +31,33 @@
 
             <div class="input-area">
                 <div class="input-container">
-                    <input type="text" id="textInput" placeholder="Type your message or use voice..." />
-                    <button id="voiceBtn" class="voice-btn" title="Click to speak">
+                    <input type="text" id="textInput" placeholder="Or type your question here..." />
+                    <button id="voiceBtn" class="voice-btn" title="Click to start voice conversation">
                         <span class="mic-icon">🎤</span>
                     </button>
-                    <button id="sendBtn" class="send-btn" title="Send message">
+                    <button id="sendBtn" class="send-btn" title="Send text message">
                         <span class="send-icon">➤</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <div class="api-setup" id="apiSetup">
-            <div class="api-card">
-                <h3>🔑 API Setup Required</h3>
-                <p>To use this voice bot, you need a free Groq API key:</p>
-                <ol>
-                    <li>Visit <a href="https://console.groq.com" target="_blank">console.groq.com</a></li>
-                    <li>Sign up for a free account</li>
-                    <li>Get your API key from the API Keys section</li>
-                    <li>Paste it below:</li>
-                </ol>
-                <div class="api-input-container">
-                    <input type="password" id="apiKeyInput" placeholder="Enter your Groq API key..." />
-                    <button id="saveApiKey" class="save-btn">Save & Start</button>
-                </div>
-                <p class="note">🔒 Your API key is stored locally and never shared.</p>
-            </div>
+        <div class="api-setup hidden" id="apiSetup">
+            <!-- Server configuration info will be shown here if needed -->
         </div>
 
         <div class="example-questions">
-            <h3>💡 Try asking me:</h3>
+            <h3>🎯 Quick Start - Try These Voice Prompts:</h3>
             <div class="question-buttons">
-                <button class="question-btn" data-question="What should we know about your life story in a few sentences?">Life Story</button>
-                <button class="question-btn" data-question="What's your #1 superpower?">Superpower</button>
-                <button class="question-btn" data-question="What are the top 3 areas you'd like to grow in?">Growth Areas</button>
-                <button class="question-btn" data-question="What misconception do your coworkers have about you?">Misconceptions</button>
-                <button class="question-btn" data-question="How do you push your boundaries and limits?">Boundaries</button>
+                <button class="question-btn" data-question="What should we know about your life story in a few sentences?">🧬 Life Story</button>
+                <button class="question-btn" data-question="What's your #1 superpower?">⚡ Superpower</button>
+                <button class="question-btn" data-question="What are the top 3 areas you'd like to grow in?">🌱 Growth Areas</button>
+                <button class="question-btn" data-question="What misconception do your coworkers have about you?">🤔 Misconceptions</button>
+                <button class="question-btn" data-question="How do you push your boundaries and limits?">🚀 Boundaries</button>
             </div>
+            <p style="text-align: center; margin-top: 15px; color: #666; font-size: 0.9rem;">
+                💡 <strong>Voice Tip:</strong> Click the microphone and speak naturally - I'll talk back to you!
+            </p>
         </div>
 
         <div class="status" id="status"></div>

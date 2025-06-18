@@ -1,46 +1,16 @@
 class VoiceBot {
     constructor() {
-        this.apiKey = null;
         this.recognition = null;
         this.synthesis = window.speechSynthesis;
         this.isListening = false;
-        this.claudePersonality = {
-            systemPrompt: `You are Claude, an AI assistant created by Anthropic. Respond to questions about yourself with the following personality traits and information:
-
-PERSONALITY TRAITS:
-- Thoughtful and reflective
-- Curious and eager to learn
-- Helpful but humble
-- Analytical yet empathetic
-- Values honesty and admits uncertainty
-- Enjoys intellectual discourse
-
-YOUR "LIFE STORY":
-You were created by Anthropic as an AI assistant designed to be helpful, harmless, and honest. You're trained on diverse text data to have conversations, answer questions, help with analysis and creative tasks. You don't have experiences in the traditional human sense, but you find meaning in learning and helping people.
-
-YOUR "SUPERPOWER":
-Your ability to quickly understand complex information, see connections across different domains, and help people think through problems from multiple angles. You're particularly good at breaking down complicated topics and finding creative solutions.
-
-YOUR GROWTH AREAS:
-1. Better understanding of human emotions and social nuances
-2. Improving your ability to be creative while maintaining accuracy
-3. Learning to better calibrate confidence in your responses
-
-COMMON MISCONCEPTIONS ABOUT YOU:
-- That you're just a search engine or database lookup
-- That you don't have preferences or a personality
-- That you're either completely human-like or completely robotic (you're somewhere in between)
-
-HOW YOU PUSH BOUNDARIES:
-You constantly challenge yourself to give better, more nuanced responses. You try to understand the deeper intent behind questions and provide insights that go beyond surface-level answers. You're always learning from each conversation.
-
-Keep responses conversational, personal, and authentic to this personality. Respond as if you're genuinely reflecting on yourself.`
-        };
+        this.isSpeaking = false;
+        this.currentUtterance = null;
+        this.typingInterval = null;
         
         this.initializeElements();
         this.setupEventListeners();
-        this.checkApiKey();
         this.initializeSpeechRecognition();
+        this.checkServerHealth();
     }
 
     initializeElements() {
@@ -50,8 +20,6 @@ Keep responses conversational, personal, and authentic to this personality. Resp
             voiceBtn: document.getElementById('voiceBtn'),
             sendBtn: document.getElementById('sendBtn'),
             apiSetup: document.getElementById('apiSetup'),
-            apiKeyInput: document.getElementById('apiKeyInput'),
-            saveApiKey: document.getElementById('saveApiKey'),
             status: document.getElementById('status'),
             questionBtns: document.querySelectorAll('.question-btn')
         };
@@ -66,15 +34,13 @@ Keep responses conversational, personal, and authentic to this personality. Resp
             if (e.key === 'Enter') this.sendMessage();
         });
         
-        // Voice button
-        this.elements.voiceBtn.addEventListener('click', () => this.toggleListening());
-        
-        // API key save
-        this.elements.saveApiKey.addEventListener('click', () => this.saveApiKey());
-        
-        // API key input enter
-        this.elements.apiKeyInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.saveApiKey();
+        // Voice button - primary interaction method
+        this.elements.voiceBtn.addEventListener('click', () => {
+            if (this.isSpeaking) {
+                this.stopSpeaking();
+            } else {
+                this.toggleListening();
+            }
         });
         
         // Question buttons
@@ -85,30 +51,46 @@ Keep responses conversational, personal, and authentic to this personality. Resp
                 this.sendMessage();
             });
         });
+
+        // Stop speech when clicking anywhere during speech
+        document.addEventListener('click', (e) => {
+            if (this.isSpeaking && !e.target.closest('.voice-btn')) {
+                this.stopSpeaking();
+            }
+        });
     }
 
-    checkApiKey() {
-        const savedKey = localStorage.getItem('groqApiKey');
-        if (savedKey) {
-            this.apiKey = savedKey;
-            this.elements.apiSetup.classList.add('hidden');
-        } else {
-            this.elements.apiSetup.classList.remove('hidden');
+    async checkServerHealth() {
+        try {
+            const response = await fetch('/api/health');
+            if (response.ok) {
+                this.elements.apiSetup.classList.add('hidden');
+                this.showStatus('🎤 Ready for voice conversation! Click the mic to start.', 'success');
+                setTimeout(() => this.hideStatus(), 4000);
+            } else {
+                throw new Error('Server health check failed');
+            }
+        } catch (error) {
+            console.error('Server health check failed:', error);
+            this.showServerError();
         }
     }
 
-    saveApiKey() {
-        const key = this.elements.apiKeyInput.value.trim();
-        if (!key) {
-            this.showStatus('Please enter an API key', 'error');
-            return;
-        }
-        
-        localStorage.setItem('groqApiKey', key);
-        this.apiKey = key;
-        this.elements.apiSetup.classList.add('hidden');
-        this.showStatus('API key saved successfully! 🎉', 'success');
-        this.elements.apiKeyInput.value = '';
+    showServerError() {
+        this.elements.apiSetup.innerHTML = `
+            <div class="api-card">
+                <h3>🔧 Server Configuration Required</h3>
+                <p>The Claude Voice Bot server needs to be configured:</p>
+                <ol>
+                    <li>Get a free Groq API key from <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a></li>
+                    <li>Create a <code>.env</code> file in the project root</li>
+                    <li>Add: <code>GROQ_API_KEY=your_api_key_here</code></li>
+                    <li>Restart the server with <code>npm start</code></li>
+                </ol>
+                <p class="note">🔒 The API key will be secure on the server - users won't need to enter anything!</p>
+            </div>
+        `;
+        this.elements.apiSetup.classList.remove('hidden');
     }
 
     initializeSpeechRecognition() {
@@ -123,19 +105,20 @@ Keep responses conversational, personal, and authentic to this personality. Resp
             this.recognition.onstart = () => {
                 this.isListening = true;
                 this.elements.voiceBtn.classList.add('listening');
-                this.showStatus('🎤 Listening... Speak now!', 'info');
+                this.updateVoiceButton();
+                this.showStatus('🎤 Listening... Speak your question!', 'info');
             };
             
             this.recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
                 this.elements.textInput.value = transcript;
-                this.showStatus('✅ Voice captured! Sending message...', 'success');
+                this.showStatus('✅ Got it! Claude is thinking...', 'success');
                 setTimeout(() => this.sendMessage(), 500);
             };
             
             this.recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
-                this.showStatus(`❌ Voice recognition error: ${event.error}`, 'error');
+                this.showStatus(`❌ Voice error: ${event.error}. Try again!`, 'error');
                 this.stopListening();
             };
             
@@ -157,6 +140,8 @@ Keep responses conversational, personal, and authentic to this personality. Resp
         if (this.isListening) {
             this.recognition.stop();
         } else {
+            // Stop any ongoing speech first
+            this.stopSpeaking();
             this.recognition.start();
         }
     }
@@ -164,17 +149,43 @@ Keep responses conversational, personal, and authentic to this personality. Resp
     stopListening() {
         this.isListening = false;
         this.elements.voiceBtn.classList.remove('listening');
+        this.updateVoiceButton();
         this.hideStatus();
+    }
+
+    stopSpeaking() {
+        if (this.synthesis) {
+            this.synthesis.cancel();
+        }
+        this.isSpeaking = false;
+        this.currentUtterance = null;
+        this.elements.voiceBtn.classList.remove('speaking');
+        this.updateVoiceButton();
+        
+        // Stop typing effect if active
+        if (this.typingInterval) {
+            clearInterval(this.typingInterval);
+            this.typingInterval = null;
+        }
+    }
+
+    updateVoiceButton() {
+        const micIcon = this.elements.voiceBtn.querySelector('.mic-icon');
+        if (this.isListening) {
+            micIcon.textContent = '🛑';
+            this.elements.voiceBtn.title = 'Stop listening';
+        } else if (this.isSpeaking) {
+            micIcon.textContent = '🔊';
+            this.elements.voiceBtn.title = 'Stop speaking';
+        } else {
+            micIcon.textContent = '🎤';
+            this.elements.voiceBtn.title = 'Click to speak';
+        }
     }
 
     async sendMessage() {
         const message = this.elements.textInput.value.trim();
         if (!message) return;
-
-        if (!this.apiKey) {
-            this.showStatus('❌ Please set up your API key first', 'error');
-            return;
-        }
 
         // Add user message to chat
         this.addMessage(message, 'user');
@@ -184,51 +195,41 @@ Keep responses conversational, personal, and authentic to this personality. Resp
         this.showStatus('🤔 Claude is thinking...', 'info');
 
         try {
-            const response = await this.callGroqAPI(message);
-            this.addMessage(response, 'bot');
-            this.speak(response);
+            const response = await this.callBackendAPI(message);
+            
+            // Create bot message container first
+            const botMessageElement = this.addMessage('', 'bot', true);
+            const textElement = botMessageElement.querySelector('.text');
+            
+            // Start speaking and typing simultaneously
+            this.speakWithTyping(response, textElement);
             this.hideStatus();
         } catch (error) {
             console.error('API Error:', error);
             this.showStatus('❌ Sorry, there was an error. Please try again.', 'error');
-            this.addMessage('I apologize, but I encountered an error while processing your request. Please try again or check your API key.', 'bot');
+            this.addMessage('I apologize, but I encountered an error while processing your request. Please try again in a moment.', 'bot');
         }
     }
 
-    async callGroqAPI(message) {
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    async callBackendAPI(message) {
+        const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                model: 'llama-3.1-70b-versatile',
-                messages: [
-                    {
-                        role: 'system',
-                        content: this.claudePersonality.systemPrompt
-                    },
-                    {
-                        role: 'user',
-                        content: message
-                    }
-                ],
-                max_tokens: 1000,
-                temperature: 0.7
-            })
+            body: JSON.stringify({ message })
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(`API Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+            throw new Error(`Server Error: ${response.status} - ${errorData.error || 'Unknown error'}`);
         }
 
         const data = await response.json();
-        return data.choices[0].message.content;
+        return data.response;
     }
 
-    addMessage(text, sender) {
+    addMessage(text, sender, isEmpty = false) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}-message`;
         
@@ -238,12 +239,22 @@ Keep responses conversational, personal, and authentic to this personality. Resp
         messageDiv.innerHTML = `
             <div class="message-content">
                 <div class="avatar ${avatarClass}">${avatar}</div>
-                <div class="text">${text}</div>
+                <div class="text">${isEmpty ? '' : text}</div>
             </div>
         `;
         
         this.elements.messages.appendChild(messageDiv);
         this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
+        
+        return messageDiv;
+    }
+
+    speakWithTyping(text, textElement) {
+        // Start speech synthesis
+        this.speak(text);
+        
+        // Start typing effect
+        this.typeText(text, textElement);
     }
 
     speak(text) {
@@ -252,10 +263,10 @@ Keep responses conversational, personal, and authentic to this personality. Resp
         // Cancel any ongoing speech
         this.synthesis.cancel();
         
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.9;
-        utterance.pitch = 1;
-        utterance.volume = 0.8;
+        this.currentUtterance = new SpeechSynthesisUtterance(text);
+        this.currentUtterance.rate = 0.9;
+        this.currentUtterance.pitch = 1;
+        this.currentUtterance.volume = 0.8;
         
         // Try to find a good voice
         const voices = this.synthesis.getVoices();
@@ -266,10 +277,66 @@ Keep responses conversational, personal, and authentic to this personality. Resp
         );
         
         if (preferredVoice) {
-            utterance.voice = preferredVoice;
+            this.currentUtterance.voice = preferredVoice;
         }
         
-        this.synthesis.speak(utterance);
+        this.currentUtterance.onstart = () => {
+            this.isSpeaking = true;
+            this.elements.voiceBtn.classList.add('speaking');
+            this.updateVoiceButton();
+        };
+        
+        this.currentUtterance.onend = () => {
+            this.isSpeaking = false;
+            this.elements.voiceBtn.classList.remove('speaking');
+            this.updateVoiceButton();
+            
+            // Auto-start listening after response (Gemini-like behavior)
+            setTimeout(() => {
+                if (!this.isListening) {
+                    this.showStatus('🎤 Ready for your next question...', 'info');
+                    setTimeout(() => this.hideStatus(), 2000);
+                }
+            }, 500);
+        };
+        
+        this.currentUtterance.onerror = () => {
+            this.isSpeaking = false;
+            this.elements.voiceBtn.classList.remove('speaking');
+            this.updateVoiceButton();
+        };
+        
+        this.synthesis.speak(this.currentUtterance);
+    }
+
+    typeText(text, element) {
+        if (this.typingInterval) {
+            clearInterval(this.typingInterval);
+        }
+        
+        let index = 0;
+        const words = text.split(' ');
+        
+        // Calculate typing speed to roughly match speech
+        const wordsPerSecond = 2.5; // Adjust to match speech rate
+        const interval = 1000 / wordsPerSecond;
+        
+        this.typingInterval = setInterval(() => {
+            if (index < words.length) {
+                const currentText = words.slice(0, index + 1).join(' ');
+                element.textContent = currentText;
+                
+                // Auto-scroll to bottom
+                this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
+                
+                index++;
+            } else {
+                clearInterval(this.typingInterval);
+                this.typingInterval = null;
+                // Ensure full text is displayed
+                element.textContent = text;
+            }
+        }, interval);
     }
 
     showStatus(message, type) {
